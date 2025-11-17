@@ -19,3 +19,17 @@ mongod --version
 // or
 mongo --version
 ```
+
+# Check MongoDB Service (Server running or not) 
+cmd = win + R 
+```
+services.msc 
+```
+Find MongoDB Server 
+If it exists → MongoDB is installed. 
+
+# Vs code 
+
+<p align="center">
+  <img src="./assets/mdb01.png" alt="Cover Image" width="70%" />
+</p>
