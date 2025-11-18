@@ -31,5 +31,5 @@ If it exists → MongoDB is installed.
 # Vs code 
 
 <p align="center">
-  <img src="./assets/mdb01.png" alt="Cover Image" width="70%" />
+  <img src="./assets/mdb01.png" alt="Cover Image" width="100%" />
 </p>
