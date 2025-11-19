@@ -130,7 +130,7 @@ db.collection.aggregate([...]).explain("executionStats")
 Look for: totalDocsExamined ≈ totalKeysExamined ≈ 0 → your index is good.
 
 3. currentOp() + killOp() = your incident super-power
-```
+```js
 // Find queries running > 30 seconds
 db.currentOp(true).inprog.forEach(op => {
   if (op.secs_running > 30) printjson(op);
@@ -141,7 +141,7 @@ db.killOp(123456789)   // opid from above
 ```
 
 4. Bulk operations: always prefer the new API + ordered: false
-```
+```js
 db.collection.bulkWrite([
   { insertOne: { document: doc1 } },
   { updateOne: { filter: { _id: 2 }, update: { $set: { x: 1 } } } },
@@ -153,38 +153,38 @@ Always connect to mongos for queries, writes, and administration. <br>
 Direct shard connections bypass the balancer, chunk routing, and can corrupt data if used incorrectly.
 
 6. Slow queries? Check the profiler first
-```
+```js
 db.setProfilingLevel(1, { slowms: 100 })   // log queries > 100ms
 db.system.profile.find().sort({ ts: -1 }).limit(20).pretty()
 ```
 7. Use proper write concern & read concern in production
-```
+```js
 db.collection.insertOne(doc, { writeConcern: { w: "majority", wtimeout: 5000 } })
 db.collection.find().readConcern("majority")
 ```
 8. Transactions: don’t forget the session
-```
+```js
 const session = db.getMongo().startSession();
 session.withTransaction(() => {
   // your multi-collection ops here
 }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
 ```
 9. Index bloat is real — clean up duplicates
-```
+```js
 db.collection.getIndexes()                     // spot duplicates or unused ones
 db.collection.dropIndex("oldIndexName")
 ```
 10. Oplog too small? You’re living on borrowed time
-```
+```js
 // On primary
 db.printReplicationInfo()
 // If oplog window < 24h on a busy system → increase it NOW
 ```
 ### Bonus One-Liners Every Expert Has Memorized]
-```
+```js
 rs.status().members.forEach(m => print(m.name + " → " + m.stateStr))
 sh.status().shards.forEach(s => print(s._id + ": " + s.host))
 db.serverStatus().tcmalloc.tcmalloc.aggressiveMemoryDecompress   // memory fragmentation
 db.stats().dataSize / db.stats().storageSize                     // compression ratio
 ```
-
+---
