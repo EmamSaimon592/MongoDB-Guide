@@ -31,7 +31,7 @@ If it exists → MongoDB is installed.
 # Vs code 
 
 <p align="center">
-  <img src="./assets/mdb01.png" alt="Cover Image" width="100%" />
+  <img src="./assets/mdb01.png" alt="Cover Image" width="50%" />
 </p>
 
 # MongoDB Shell (mongosh) Pro Commands – A to Z Cheat Sheet
@@ -103,3 +103,88 @@ db.orders.aggregate([{$group: {_id: "$customer", total: {$sum: "$amount"}}}])
 rs.status()
 sh.status()
 db.serverStatus().metrics.query.slowQueries   // check slow query count
+```
+
+# Tips from Real-World MongoDB Experts  
+*(The hard-won lessons you won’t find in most tutorials)*
+
+Here’s the distilled wisdom from MongoDB DBAs, architects, and developers who’ve been on-call at scale. Keep this open — it will save you hours (or nights) of pain.
+
+### Must-Know Best Practices
+
+1. **Never trust `.count()`**  
+   ```js
+   // Deprecated & can be wildly wrong on sharded clusters
+   db.collection.count()
+
+   // Always use these instead
+   db.collection.countDocuments({})                   // accurate, uses aggregation
+   db.collection.estimatedDocumentCount({})           // fast (metadata only, no filters)
+   db.collection.aggregate([{ $count: "total" }])
+   ```
+2. Always explain before you index
+```js
+db.collection.find({ status: "A" }).explain("executionStats")
+db.collection.aggregate([...]).explain("executionStats")
+```
+Look for: totalDocsExamined ≈ totalKeysExamined ≈ 0 → your index is good.
+
+3. currentOp() + killOp() = your incident super-power
+```
+// Find queries running > 30 seconds
+db.currentOp(true).inprog.forEach(op => {
+  if (op.secs_running > 30) printjson(op);
+})
+
+// Kill the worst offender
+db.killOp(123456789)   // opid from above
+```
+
+4. Bulk operations: always prefer the new API + ordered: false
+```
+db.collection.bulkWrite([
+  { insertOne: { document: doc1 } },
+  { updateOne: { filter: { _id: 2 }, update: { $set: { x: 1 } } } },
+  { deleteOne: { filter: { _id: 3 } } }
+], { ordered: false })   // continues on error → much faster & resilient
+```
+5. Sharded cluster rule #1: NEVER connect directly to a mongod shard
+Always connect to mongos for queries, writes, and administration. <br>
+Direct shard connections bypass the balancer, chunk routing, and can corrupt data if used incorrectly.
+
+6. Slow queries? Check the profiler first
+```
+db.setProfilingLevel(1, { slowms: 100 })   // log queries > 100ms
+db.system.profile.find().sort({ ts: -1 }).limit(20).pretty()
+```
+7. Use proper write concern & read concern in production
+```
+db.collection.insertOne(doc, { writeConcern: { w: "majority", wtimeout: 5000 } })
+db.collection.find().readConcern("majority")
+```
+8. Transactions: don’t forget the session
+```
+const session = db.getMongo().startSession();
+session.withTransaction(() => {
+  // your multi-collection ops here
+}, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+```
+9. Index bloat is real — clean up duplicates
+```
+db.collection.getIndexes()                     // spot duplicates or unused ones
+db.collection.dropIndex("oldIndexName")
+```
+10. Oplog too small? You’re living on borrowed time
+```
+// On primary
+db.printReplicationInfo()
+// If oplog window < 24h on a busy system → increase it NOW
+```
+### Bonus One-Liners Every Expert Has Memorized]
+```
+rs.status().members.forEach(m => print(m.name + " → " + m.stateStr))
+sh.status().shards.forEach(s => print(s._id + ": " + s.host))
+db.serverStatus().tcmalloc.tcmalloc.aggressiveMemoryDecompress   // memory fragmentation
+db.stats().dataSize / db.stats().storageSize                     // compression ratio
+```
+
